@@ -11,7 +11,7 @@ int buf[MAXELEMS], pos=0, val=0;                // variaveis partilhadas
 void *fill(void *nr)
 {
         while (1) {
-                pthread_mutex_lock(&mut); 
+                pthread_mutex_lock(&mut);
                 if (pos >= npos) {
                         pthread_mutex_unlock(&mut);
                         return NULL;
@@ -24,11 +24,20 @@ void *fill(void *nr)
 }
 void *verify(void *arg)
 {
-        int k;
-        for (k=0; k<npos; k++)
-                if (buf[k] != k)   // detecta valores errados
-                        printf("ERROR: buf[%d] = %d\n", k, buf[k]);
-        return NULL;
+  int k;
+
+  for (k=0; k<npos; k++){
+    pthread_mutex_lock(&mut);
+    if(k<pos){
+      if (buf[k] != k)   // detecta valores errados
+        printf("ERROR: buf[%d] = %d\n", k, buf[k]);
+    }else{
+      k--;
+      // do nothing;
+    }
+    pthread_mutex_unlock(&mut);
+  }
+  return NULL;
 }
 int main(int argc, char *argv[])
 {
@@ -45,6 +54,7 @@ int main(int argc, char *argv[])
                 count[k] = 0;
                 pthread_create(&tidf[k], NULL, fill, &count[k]);
         }
+        pthread_create(&tidv, NULL, verify, NULL);
         total=0;
         for (k=0; k<nthr; k++) {   //espera threads 'fill'
                 pthread_join(tidf[k], NULL);
@@ -52,7 +62,6 @@ int main(int argc, char *argv[])
                 total += count[k];
         }
         printf("total count = %d\n",total);   // mostra total
-        pthread_create(&tidv, NULL, verify, NULL);
         pthread_join(tidv, NULL);   // espera thread 'verify'
         return 0;
 }
